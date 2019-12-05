@@ -1,2 +1,2 @@
 # Ignore bot file.
-bot.json
+*.json
