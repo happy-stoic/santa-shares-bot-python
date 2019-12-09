@@ -1,5 +1,6 @@
 import requests, time, json, datetime, os, random
 import argparse, sys
+from santa_shares import Shop, User
 
 parser = argparse.ArgumentParser()
 parser.add_argument("user_name")
@@ -7,45 +8,21 @@ args = parser.parse_args(sys.argv[1:])
 
 API_URL = "https://santa-shares.azurewebsites.net"
 #API_URL = "http://localhost"
-USER_NAME = args.user_name
 
-print(f"Starting bot targeting [{API_URL}]")
-if not os.path.exists(USER_NAME+".json"):
+shop = Shop(API_URL)
+user = User(API_URL, args.user_name)
+user.register()
 
-    response = requests.post(API_URL+"/api/users", json={ "user_name" : USER_NAME })
-    if response.status_code != 201:
-        print(f"[{response.status_code}]")
-        exit()
-    else:
-        json_response = response.json()
-        USER_ID = json_response.get("user_id")
-        TOKEN = json_response.get("token")
-        with open(USER_NAME+".json", "w") as file:
-            json.dump({
-                "user_id" : USER_ID,
-                "user_name" : USER_NAME,
-                "token" : TOKEN,
-            }, file)
-
-with open(USER_NAME+".json", "r") as file:
-    json_data = json.load(file)
-    USER_ID = json_data["user_id"]
-    USER_NAME = json_data["user_name"]
-    TOKEN = json_data["token"]
-
-HEADERS = { "Authorization" : f"token {TOKEN}" }
 time.sleep(1)
 
-print(f"[{USER_NAME}] [{TOKEN}]")
 while True:
-
-    status = requests.get(API_URL+"/api/users/"+str(USER_ID), headers=HEADERS).json()
+    status = user.get_status()
     print(f"I've got [£{status['balance']/100:.2f}] cash left.")
 
     # randomly buy or sell
-    if random.random() > 0.5: # buy
+    if random.random() > 0.25: # buy
         print("I'm gonna buy something...")
-        items = requests.get(API_URL+"/api/items").json()
+        items = shop.get_items()
         item = items[random.randint(0, len(items)-1)]
         print(f"Chosen to buy [{item['item_name']}]")
 
@@ -60,7 +37,7 @@ while True:
             continue
 
         print(f"Buying [{purchase_amount}] of [{item['item_name']}] for [£{purchase_price/100:.2f}]")
-        requests.post(API_URL+"/api/buy", headers=HEADERS, json={ "item_id" : item["item_id"], "amount" : purchase_amount })
+        user.buy(item["item_id"], purchase_amount)
     else:
         print("Hmmm what could I sell...")
         if len(status["items"]) == 0:
@@ -77,6 +54,6 @@ while True:
             continue
 
         print(f"Selling [{sale_amount}] of [{user_item['item_name']}] for [£{sale_price/100:.2f}]")
-        response = requests.post(API_URL+"/api/sell", headers=HEADERS, json={ "item_id" : user_item["item_id"], "amount" : sale_amount })
+        user.sell(user_item["item_id"], sale_amount)
 
-    time.sleep(120)
+    time.sleep(5)
