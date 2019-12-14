@@ -1,3 +1,4 @@
 # Ignore bot file.
 *.json
 __pycache__\
+__pycache__/
